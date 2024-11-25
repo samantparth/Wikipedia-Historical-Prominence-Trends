@@ -23,4 +23,3 @@ response <- GET(url, write_disk(destfile, overwrite = TRUE), timeout(300))
 
 # Decompress the .gz file and save .csv file
 gunzip("data/raw_data/raw_data.csv.gz", remove = TRUE)  # Set remove = FALSE to keep the original .gz file
-
