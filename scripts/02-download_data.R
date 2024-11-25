@@ -1,4 +1,5 @@
 #### Preamble ####
+<<<<<<< HEAD
 # Purpose: Downloads and saves the data from Notable People Wikipedia Dataset
 # Author: Parth Samant
 # Date: 25 November 2024
