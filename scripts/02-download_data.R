@@ -1,11 +1,10 @@
 #### Preamble ####
-<<<<<<< HEAD
 # Purpose: Downloads and saves the data from Notable People Wikipedia Dataset
 # Author: Parth Samant
 # Date: 25 November 2024
 # Contact: parth.samant@mail.utoronto.ca
 # License: MIT
-# Pre-requisites: Make sure tidyverse, readr, httr, R.utils have been downloaded
+# Pre-requisites: Make sure tidyverse, readr, httr, R.utils libraries have been downloaded
 # Any other information needed? None
 
 

@@ -1,10 +1,9 @@
 ---
-title: "My title"
-subtitle: "My subtitle if needed"
+title: "Which Factors are Associated with Wikipedia Relevancy?"
+subtitle: "An Analysis of Notable People on Wikipedia"
 author: 
-  - First author
-  - Another author
-thanks: "Code and data are available at: [https://github.com/RohanAlexander/starter_folder](https://github.com/RohanAlexander/starter_folder)."
+  - Parth Samant
+thanks: "Code and data are available at: [https://github.com/samantparth/Wikipedia-Historical-Prominence-Trends](https://github.com/samantparth/Wikipedia-Historical-Prominence-Trends)."
 date: today
 date-format: long
 abstract: "First sentence. Second sentence. Third sentence. Fourth sentence."
@@ -19,7 +18,16 @@ bibliography: references.bib
 #| message: false
 
 library(tidyverse)
-library(palmerpenguins)
+library(modelsummary)
+library(readr)
+library(arrow)
+library(ggplot2)
+library(knitr)
+
+cleaned_data <- read_parquet(here::here("data/analysis_data/analysis_data.parquet"))
+
+
+
 ```
 
 
@@ -27,7 +35,12 @@ library(palmerpenguins)
 
 Overview paragraph
 
+Understanding prominence of individuals on offers a way to quantify the societal impact of individuals through time. By using a dataset of notable people on Wikipedia from 3500 BCE to 2018 AD, this paper uses a bayesian linear model to identify certain factors associated with prominence. Some of the factors focused on include nationality, gender, occupation, and the number of years since the individuals birth. Analysing potential trends allows us to evaluate potential patterns and bias in one's relevance.
+
 Estimand paragraph
+
+The estimating (or what we are estimating) is the prominence of their Wikipedia biography based on percentile. "Prominence" of a biography is determined using multiple metrics, such as the average amount of views per year, the total word count, and the number of Wikipedia editions.
+
 
 Results paragraph
 
@@ -44,70 +57,163 @@ Telegraphing paragraph: The remainder of this paper is structured as follows. @s
 
 ## Overview
 
-We use the statistical programming language R [@citeR].... Our data [@shelter].... Following @tellingstories, we consider...
-
-Overview text
-
-## Measurement
-	
-Some paragraphs about how we go from a phenomena in the world to an entry in the dataset.
-
-## Outcome variables
-
-Add graphs, tables and text. Use sub-sub-headings for each outcome variable or update the subheading to be singular.
+All data analysis was done through the statistical programming language R [@citeR] with the packages `tidyverse`[@tidyverse], `rstanarm` [@rstanarm], `modelsummary` [@modelsummary], `arrow`[@arrow], `readr`[@readr], `httr`[@httr], `R.utils`[@R.utils], `knitr`[@knitr] and `ggplot2` [@ggplot].
 
 
+## Measurement [@sec-measurement]
 
-Some of our data is of penguins (@fig-bills), from @palmerpenguins.
+
+Wikipedia is an online encyclopedia that provides information on numerous subjects, including the lives of those who are relatively well-known.Thus, the data comes from a research study [@notablepeople] that aims to build a cross-verified database of 'notable people' who have ever lived by using information from Wikipedia. Those with a Wikipedia article are considered "notable", as the overwhelming majority of people who have ever lived do not have one. Additionally, this dataset of notable people is very large (with hundreds of thousands of entries), reflecting the large amount of notable people that are written about on Wikipedia.
+
+This data was obtained using the Wikidata universe (which provides data on Wikipedia), where they used the "instance of humans" category to select for a sample of notable individuals. Many potential obstacles (including identifying non-humans vs humans or multiple biographies) were controlled for when this dataset was made.
+
+Based on the information provided in those Wikipedia articles, the study was also able to identify characteristics of these people. Some of these factors include nationality, occupation, and age.
+
+Furthermore, the researchers constructed many variables including `ranking_visib_5criteria`, which ranks the prominence of an individual on Wikipedia. The ranking is dependent on these 5 metrics :
+
+- the number of different editions;
+- the number of non-missing items for birth date, gender, and domain of influence;
+- the total number of words for their article;
+- average yearly number of viewers from 2015 to 2018;
+- number of external links (such as sources and references) from Wikidata.
+
+## Data Cleaning and Variables
+
+This dataset was cleaned by first mutating some variables, selecting/renaming variables of interest, and filtering out rows with missing information, randomly selecting 10,000 entries from the dataset. The variables selected are mentioned later on in this section.
+
+
+Since this paper focuses on predicting historical prominence, I chose variables which I thought could be associated with the outcome variable (`percentile_rank`).
+
+Outcome Variable: 
+
+- `**percentile_rank**`: a transformation of the variable `ranking_visib_5criteria` (as mentioned in @sec-measurement). This indicates the percentile associated with the notability ranking. A higher percentile indicates they were a more notable person. 
+
+Predictor Variables:
+
+- `**subregion**`: the UN subregion corresponding to where they were from. This is simply a renaming of the variable `un_subregion`.  
+
+- `**years_since_birth**`: the number number of years that have passed since their birth. If they are alive, this is simple their age. 
+
+- `**time_period**`: The time period that they were born in.
+
+- `**gender**`: The reported gender of the individual (either male or female).
+
+- `**occupation**`: The primary field/occupation that the individual is known for.
+
+## Analysis of Variables
+
+### Subregion
+
+In @fig-subregion-counts, we can visualize the distribution of each geographic sub region. 
 
 ```{r}
-#| label: fig-bills
-#| fig-cap: Bills of penguins
+
+#| label: fig-subregion-counts
+#| fig-cap: Proportion of Notable People by Subregion
 #| echo: false
 
-ggplot(penguins, aes(x = island, fill = species)) +
-  geom_bar(alpha = 0.8) +
-  scale_fill_manual(values = c("darkorange","purple","cyan4"),
-                    guide = "none") +
-  theme_minimal() +
-  facet_wrap(~species, ncol = 1) +
-  coord_flip()
+
+summary_table_subregion <- cleaned_data |>
+  group_by(subregion) |>
+  summarize(Count = n()/nrow(cleaned_data)) |>
+  arrange(desc(Count))
+
+summary_table_subregion |>
+ kable()
+```
+@fig-subregion-counts provides a detailed view of the prevalence of notable people by subregion. Interestingly, subregions that are a part of the Western world tend to be over-represented in terms of notable people.  In fact, the difference is so stark that the most well-represented region (Western Europe) has nearly 100x the representation of notable people than West Africa.
+
+There could be many explanations for this, such as how Western nations tend to have more global cultural dominance (and thus more 'notable people').
+
+### time_period/years_since_birth
+
+These are two variables that are directly associated with each other, since the time period of ones life is directly a result of the number of years since their birth.
+
+However, a notable feature of `years_since_birth` (and thus `time_period`) is the distribution as shown in @fig-years_since_birth.
+```{r}
+#| label: fig-years_since_birth
+#| fig-cap: Distribution of Notable Individuals by Years Since Birth
+#| echo: false
+
+hist(cleaned_data$years_since_birth, xlab = "Years Since Birth",main = NULL)
+
 ```
 
-Talk more about it.
+From @fig-years_since_birth, we can see that the overwhelming majority of documented notable people on Wikipedia tend to be born in the past 500 or so years. This makes sense, as retrieving information on individuals that lived a longer time ago is more difficult. Future plots and analyses will thus use the logarithm of this variable to have a more detailed view on its impact.
 
-And also planes (@fig-planes). (You can change the height and width, but don't worry about doing that until you have finished every other aspect of the paper - Quarto will try to make it look nice and the defaults usually work well once you have enough text.)
+### Time Period and Subregion
+
+Different regions had different levels of cultural relevance/dominance depending on the time period. Because of this fact, it may be possible that the prevalence of subregions can heavily depend on the number of years since their birth.
+
+In @fig-time-subregion, we can see this relationship quite clearly. Note that the proportions are out of the top 5 most popular subregions, rather than every subregion. This was done to ensure readability.
 
 ```{r}
-#| label: fig-planes
-#| fig-cap: Relationship between wing length and width
+#| label: fig-time-subregion
+#| fig-cap: Top 5 Subregions by Time Period
 #| echo: false
-#| warning: false
-#| message: false
 
-analysis_data <- read_csv(here::here("data/02-analysis_data/analysis_data.csv"))
 
-analysis_data |> 
-  ggplot(aes(x = width, y = length)) +
-  geom_point(alpha = 0.8) +
+# Count occurrences of subregion by time_period
+cleaned_data_filtered <- cleaned_data |>
+  count(time_period, subregion) 
+
+# Filter to the top 5 subregions by count for each time_period
+top5_subregions <- cleaned_data_filtered |>
+  group_by(time_period) 
+  slice_max(order_by = n, n = 5) |>
+  ungroup()
+
+# Recalculate proportions within the filtered top 5 data
+cleaned_data_top5 <- top5_subregions %>%
+  group_by(time_period) %>%
+  mutate(proportion = n / sum(n)) %>%  # Recalculate proportions after filtering
+  ungroup()
+
+# creating graph
+ggplot(data = cleaned_data_top5, aes(x = time_period, y = proportion, fill = subregion)) +
+  geom_bar(stat = "identity", position = "stack") + 
   theme_minimal() +
-  labs(x = "Wing width (mm)",
-       y = "Wing length (mm)")
+  labs(
+    x = "Time Period",
+    y = "Proportion",
+    fill = "Subregion"
+  ) +
+  scale_fill_brewer(palette = "Set3") + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    legend.position = "right"  
+  )
 ```
+From @fig-time-subregion, we can confirm the relationship between the time period and subregion - that the prevalency of notable individuals heavily changes depending on the time period in question. The most notable example is the decrease in prevalence for Southern Europe/East Asia and the subsequent rise of Northern America (i.e., the USA and Canada) and Western Europe. 
 
-Talk way more about it. 
+As mentioned above, this confirms the phenomenon of how different subregions have different levels of influence depending on the time period. This graph especially highlights the rise of notable people in Western Europe as well as its descendant countries.
 
-## Predictor variables
+### Gender and Occupation
 
-Add graphs, tables and text.
+The remaining variables, gender and occupation, may also show some sort of trend (since ones field of work is often quite gendered). This relationship is shown in @tbl-gender-occupation, which shows ones occupation (or more specifically, what they are known for).
 
-Use sub-sub-headings for each outcome variable and feel free to combine a few into one if they go together naturally.
+```{r}
+#| label: tbl-gender-occupation
+#| fig-cap: Occupations of Notable People by Gender
+#| echo: false
 
+summary_table_occupation <- cleaned_data |>
+  group_by(occupation) |>
+  summarize(
+    Count = n(),
+    female_count = sum(gender=="Female"),
+    male_count = sum(gender=="Male"),
+    proportion_female = female_count/Count,
+    proportion_male = male_count/Count) |>
+  arrange(desc(proportion_female))
 
+summary_table_occupation |>
+ select(occupation, proportion_female,proportion_male) |>
+  kable(digits=2)
+```
+@tbl-gender-occupation shows that those of nobility (often by being born in a high social rank) tend to have a higher proportion of females, where other occupations - such as the military - tend to have a higher proportion of males.
 
-
-
-
+Interestingly, even the most female-dominated occupation (nobility) is still roughly 2/3rds men. This reflects a clear bias in people that are considered 'notable': men are very much over-represented in every occupation (and in this dataset, as a result).
 
 
 # Model
