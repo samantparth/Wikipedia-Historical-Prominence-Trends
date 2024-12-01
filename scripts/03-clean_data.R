@@ -17,7 +17,7 @@ library(arrow)
 raw_data <- read_csv("data/raw_data/raw_data.csv")
 
 # To make data reproducible
-set.seed(200)
+set.seed(201)
 
 
 #Selecting for relevant columns, as well as making a couple new ones
@@ -26,9 +26,10 @@ cleaned_data <- raw_data |>
     percentile_rank = percent_rank(-ranking_visib_5criteria),
     years_since_birth = 2024-birth
     ) |>
-  select(name, years_since_birth, gender, level2_main_occ, bigperiod_birth_graph_b, un_subregion, percentile_rank) |> 
-  filter(if_all(c(years_since_birth, gender, level2_main_occ, bigperiod_birth_graph_b, un_subregion, percentile_rank), ~ !is.na(.))) |>
-  sample_n(10000, replace = FALSE) |>
+  select(years_since_birth, gender, level2_main_occ, bigperiod_birth_graph_b, un_subregion, percentile_rank) |> 
+  filter(gender %in% c("Male", "Female"),
+    if_all(c(years_since_birth, gender, level2_main_occ, bigperiod_birth_graph_b, un_subregion, percentile_rank), ~ !is.na(.))) |>
+  # sample_n(20000, replace = FALSE) |>
   rename(
     occupation = level2_main_occ,
     time_period = bigperiod_birth_graph_b,
@@ -47,6 +48,13 @@ cleaned_data <- raw_data |>
       )
   )
 
+
+# Filter and sample 1000 entries for each time period
+# sampled_data <- cleaned_data |>
+#   filter(time_period %in% c("1. Before 500AD", "2. 501-1500AD", "3. 1501-1750AD", "4. 1751-1900AD", "5. 1901-2020AD")) |> # Filter for the desired time periods
+#   group_by(time_period) |> # Group by time period
+#   sample_n(1000, replace = FALSE) |> # Sample 1000 from each group without replacement
+#   ungroup() # Remove the grouping
 
 
 #### Save data ####
