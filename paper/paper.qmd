@@ -24,11 +24,10 @@ library(readr)
 library(arrow)
 library(ggplot2)
 library(knitr)
-library(rstanarm)
 library(broom)
 library(tidymodels)
+library(MLmetrics)
 
-raw_data <- read.csv(here::here("data/raw_data/raw_data.csv"))
 cleaned_data <- read_parquet(here::here("data/analysis_data/analysis_data.parquet"))
 training_data <- read_parquet(here::here("data/analysis_data/training_data.parquet"))
 testing_data <- read_parquet(here::here("data/analysis_data/testing_data.parquet"))
@@ -41,29 +40,29 @@ BIC_model <- readRDS(here::here(file = "models/relevance_model.rds"))
 
 # Introduction
 
-Overview paragraph
+Wikipedia is an online encyclopedia has been one of the most popular references of information globally. Containing milllions of articles on the platform, and thus acting somewhat as an archive for human information. This encyclopedia provides information on a diverse range of topics from history to entertainment.
 
-Wikipedia is an online encyclopedia that contains information on millions of diverse subjects, arguably serving as a repository for human knowledge. Within this vast encyclopedia, there is also a collection of biographical information on "notable people" who have lived spanning millennia. Thus, one research study [@notablepeople] compiled a dataset of notable people on Wikipedia from 3500 BCE to 2018.
+Within this vast encyclopedia, there is also a collection of biographical information on "notable people" who have ever lived in the past few thousand years. Thus, one research study [@notablepeople] compiled a dataset of notable people on Wikipedia from 3500 BCE to 2018.
 
-Using this dataset, I constructed a linear model to identify whether certain characteristics were associated with increased prominence. Some of the factors focused on include trends in geographical subregion, gender, occupation, and the number of years since the individuals birth. By analysing these factors, this paper aims to uncover potential bias in online biographical representation and contribute to a deeper understanding of factors connected to online prominence.
-
-Estimand paragraph
+Using this dataset, I constructed a linear model to identify whether certain characteristics were associated with increased prominence. Some of the factors focused on include geographical subregion, gender, occupation, and time period (at birth). By analysing these factors, this paper aims to uncover potential bias in characteristics of notable people and contribute to a deeper understanding of factors connected to prominence on Wikipedia.
 
 The estimand (or what is being estimated) is the prominence of their Wikipedia biography based on percentile. "Prominence" of a biography is determined using multiple metrics, such as the average amount of views per year, the total word count, and the number of Wikipedia editions. This constructed percentile variable is also a transformation of the variable `ranking_visib_5criteria` present in the original dataset. Features of this variable are elaborated on in @sec-measurement.
 
-Results paragraph
+The findings of this paper showed that an individuals time period and occupation/field have a large effect on an individuals prominence. Those who were born in earlier time periods (such as before 500 BCE) were associated large increases in prominence. Additionally, those known for being part of a noble class, an important family, or for creative endeavors that shape culture (such as musicians, actors, or painters) also tend to have higher overall prominence.
 
-Why it matters paragraph
+Subregion was somewhat associated with prominence, but with a large amount of variability. Notable individuals from Eastern Asia tend to have high levels of prominence, whereas those from Central America and Southern Africa have less.
+
+This paper also found that within those who are already prominent, gender tends to have a somewhat insignificant effect.
 
 Understanding which factors contribute to prominence on Wikipedia is essential for many reasons. Wikipedia is used as a crucial tool for obtaining information for millions of people worldwide, having the ability to shape perceptions of prominent individuals. Unequal representation of prominent people can perpetuate existing biases about which characteristics are seen as "ideal" for prominence. Furthermore, these biases can discourage some individuals from pursuing fields where prominent people sharing their characteristics are under represented. Thus, analysing these dynamics can help with addressing broader societal biases and striving for a more comprehensive view of individual prominence.
 
-Telegraphing paragraph: The remainder of this paper is structured as follows. @sec-data mentions features of the dataset, @sec-model introduces and explains the constructed model, @sec-results summarizes the results of the paper, and @sec-discussion discusses the significance of these findings.
+The remainder of this paper is structured as follows. @sec-data mentions features of the dataset, @sec-model introduces, explains, and justifies the constructed model, @sec-results summarizes the results of the paper, and @sec-discussion discusses the significance of these findings.
 
 # Data {#sec-data}
 
 ## Overview
 
-All data analysis was done through the statistical programming language R [@citeR] with the packages `tidyverse`[@tidyverse], `rstanarm` [@rstanarm], `modelsummary` [@modelsummary], `arrow`[@arrow], `readr`[@readr], `httr`[@httr], `R.utils`[@R.utils], `knitr`[@knitr], `tidymodels` and `ggplot2` [@ggplot].
+All data analysis was done through the statistical programming language R [@citeR] with the help of the packages `tidyverse`[@tidyverse], `modelsummary` [@modelsummary], `arrow`[@arrow], `readr`[@readr], `httr`[@httr], `R.utils`[@R.utils], `knitr`[@knitr], `tidymodels` [@tidymodels], and `ggplot2` [@ggplot].
 
 ## Measurement {#sec-measurement}
 
@@ -85,25 +84,39 @@ More on the measurement of the dataset can be found in @sec-exploration, which p
 
 ## Data Cleaning and Variables {#sec-data-cleaning-and-variables}
 
-This dataset was cleaned by first mutating some variables, selecting/renaming variables of interest, and filtering out rows with missing information. The variables selected are mentioned later on in this section.
+This dataset was cleaned by first mutating some variables, selecting/renaming variables of interest, filtering out rows with missing information, and then randomly selecting 20,000 notable individuals. The variables selected are mentioned later on in this section.
 
-Since this paper focuses on predicting historical prominence, I chose variables which I thought could be associated with the outcome variable (`percentile_rank`).
+Since this paper focuses on predicting historical prominence, I initially chose variables which I thought could potentially be associated with the outcome variable (`percentile_rank`).
 
 Outcome Variable:
 
--   **percentile_rank**: a transformation of the variable `ranking_visib_5criteria` (as mentioned in @sec-measurement). This indicates the percentile associated with the notability ranking. A higher percentile indicates they were a more notable person.
+-   **percentile_rank**: a transformation of the variable `ranking_visib_5criteria` (as mentioned in @sec-measurement). This indicates the percentile associated with the prominence/notability ranking. A higher percentile indicates they were a more notable person.
 
-Predictor Variables:
+Original Predictor Variables:
 
 -   **subregion**: the UN subregion corresponding to where they were from. This is simply a renaming of the variable `un_subregion`.
 
--   **years_since_birth**: the number number of years that have passed since their birth. If they are alive, this is simply their age.
+-   **years_since_birth**: the number of years that have passed since their birth. If they are alive, this is simply their age.
 
 -   **time_period**: The time period that they were born in.
 
 -   **gender**: The reported gender of the individual (either male or female).
 
--   **occupation**: The primary field/occupation that the individual is known for.
+-   **occupation**: The occupation (or possibly field/title) that the individual is known for.
+
+    -   Variables starting with "culture" refer to those who are known for producing immaterial goods
+
+        -   the 'culture-core' title refers to occupations that tend to be more artistic and creative in nature. These may include artists, writers, painters, or musicians (among others). Their contributions are often essential at shaping cultural values and aesthetics.
+
+        -   The 'culture-periphery' title refers to occupations that are still artistic/creative, but tend to include more commercial and applied work. These may include journalists, models, architects, or designers.
+
+    -   Other titles such as "family" and "nobility" highlight that they are predominanly known for being associated with an influential family or possessing a hereditary title in an aristocracy.
+
+    -   titles such as "Worker/Business (small)" refer to miscellaneous jobs that are not covered by other variables. These may include those who are well-known farmers, librarians, booksellers, etc.
+
+        -   This is different than "Other", which mostly includes those known for negative notorious acts (such as a criminal or serial killer).
+
+    -   a "Missing" occupation indicates that it was unable to be retrieved by the researchers.
 
 ## Analysis of Variables {#sec-analysis-of-variables}
 
@@ -113,7 +126,7 @@ Predictor Variables:
 
 ```{r}
 #| label: tbl-subregion_counts
-#| fig-cap: Proportion of Notable People On Wikipedia by Geographical Subregion
+#| tbl-cap: Proportion of Notable People On Wikipedia by Geographical Subregion
 #| echo: false
 
 
@@ -126,15 +139,15 @@ summary_table_subregion |>
  kable()
 ```
 
-Interestingly, subregions that are a part of the Western world tend to be over-represented in terms of notable people. In fact, the difference is so stark that the most well-represented region (Western Europe) has nearly 100x the representation of notable people than West Africa.
+Interestingly, subregions that are a part of the Western World tend to be over-represented in terms of notable people. In fact, the difference is so stark that the most well-represented region (Western Europe) has nearly 100 times the number of notable people than West Africa.
 
-There could be many explanations for this, such as how Western nations tend to have more global cultural dominance (and thus more 'notable people').
+There could be many explanations for the over representation of Western countrise, such as how Western nations tend to have more global cultural dominance (and thus more 'notable people').
 
-### time_period/years_since_birth
+### time_period/years_since_birth variables
 
-These are two variables that are directly associated with each other, since the time period of ones life is directly a result of the number of years since their birth.
+These are two variables that are directly associated with each other, since the time period of ones life is directly a result of the number of years since their birth. These were both originally included to highlight the influence of not only the time period, but the more specific year in which an individual as born.
 
-However, a notable feature of `years_since_birth` (and thus `time_period`) is the distribution as shown in @fig-years_since_birth.
+A notable feature of `years_since_birth` (and thus `time_period`) is the distribution as shown in @fig-years_since_birth.
 
 ```{r}
 #| label: fig-years_since_birth
@@ -145,7 +158,7 @@ hist(cleaned_data$years_since_birth, xlab = "Years Since Birth",main = NULL)
 
 ```
 
-From @fig-years_since_birth, we can see that the overwhelming majority of documented notable people on Wikipedia tend to be born in the past 500 or so years. This makes sense, as retrieving information on individuals that lived a longer time ago is more difficult. Future plots and analyses will thus use the logarithm of this variable to have a more detailed view on its impact.
+From @fig-years_since_birth, we can see that the overwhelming majority of documented notable people on Wikipedia tend to be born in the past 500 or so years. This makes sense, as retrieving information on individuals that lived a longer time ago is more difficult.
 
 @fig-years_since_birth also has consequences for the `time_period` variable. There is an extreme lack of representation for those born in earlier time periods (especially before 500 AD), likely because of much documentation of notable people being lost from time.
 
@@ -153,7 +166,7 @@ From @fig-years_since_birth, we can see that the overwhelming majority of docume
 
 Different regions had different levels of cultural relevance/dominance depending on the time period. Because of this fact, it may be possible that the prevalence of subregions can heavily depend on the number of years since their birth.
 
-In @fig-time-subregion, we can see this relationship quite clearly. Note that the proportions are out of the top 5 most popular subregions instead of every subregion. This was done to ensure readability.
+In @fig-time-subregion, we can see this relationship quite clearly. Note that the proportions are out of the top 5 most popular subregions instead of every subregion. This was done to ensure readability and show overall trends.
 
 ```{r}
 #| label: fig-time-subregion
@@ -197,13 +210,13 @@ From @fig-time-subregion, we can confirm the relationship between the time perio
 
 As mentioned above, this confirms the phenomenon of how different subregions have different levels of influence depending on the time period. This graph especially highlights the rise of notable people in Western Europe as well as its descendant countries.
 
-### Gender and Occupation
+### Gender, Occupation, and their Interaction
 
-The remaining variables, gender and occupation, may also show some sort of trend (since ones field of work is often quite gendered). This relationship is shown in @tbl-gender_occupation, which shows ones occupation (or more specifically, what they are known for).
+The remaining variables, gender and occupation, may also show some sort of trend (since ones field of work is often quite gendered). This relationship is shown in [@tbl-gender-occupation], which shows ones occupation (or more specifically, what they are known for).
 
 ```{r}
-#| label: tbl-gender_occupation
-#| fig-cap: Occupations of Notable People by Gender, Showing High Proportion of Males
+#| label: tbl-gender-occupation
+#| tbl-cap: Occupations of Notable People by Gender, Showing High Proportion of Males
 #| echo: false
 
 summary_table_occupation <- cleaned_data |>
@@ -221,15 +234,15 @@ summary_table_occupation |>
   kable(digits=2)
 ```
 
-@tbl-gender_occupation shows that those of nobility (often by being born in a high social rank) tend to have a higher proportion of females, where other occupations - such as the military - tend to have a higher proportion of males.
+@tbl-gender-occupation shows that those of nobility (often by being born in a high social rank) tend to have a higher proportion of females, where other occupations - such as the military - tend to have a higher proportion of males.
 
-Interestingly, even the most female-dominated occupation (nobility) is still roughly 2/3rds men. This reflects a clear bias in people that are considered 'notable': men are very much over-represented in every occupation (and in this dataset, as a result).
+Interestingly, even the most female-dominated 'occupation' (the family title, which means they are notable for being a part of an important family) is still roughly 2/3rds men. This reflects a clear bias in people that are considered 'notable': men are very much over-represented in every occupation (and in this dataset, as a result).
 
-@tbl-gender reinforces the phenomenon of notable people on Wikipedia being overwhelmingly male. In fact, the proportion of males is roughly 85%.
+[@tbl-gender] reinforces the phenomenon of notable people on Wikipedia being overwhelmingly male. In fact, the proportion of males is roughly 85%.
 
 ```{r}
 #| label: tbl-gender
-#| fig-cap: Proportion of Notable People by Gender
+#| tbl-cap: Proportion of Notable People by Gender, Showing Male Over Representation
 #| echo: false
 
 gender_table <- cleaned_data |>
@@ -246,13 +259,31 @@ gender_table |>
 
 ```
 
-# ***Make sure to include graph on occupation***
+Furthermore, @fig-occupation_count provides a visualization of the most common occupations in the dataset.
 
-# Model
+```{r}
+#| label: fig-occupation_count
+#| fig-cap: Number of Notable People by Occupation, Highlighting an Unequal Distribution
+#| echo: false
+
+occupation_summary <- cleaned_data %>%
+  count(occupation, name = "count") 
+ 
+
+ggplot(occupation_summary, aes(x = count, y = reorder(occupation, count))) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") + 
+  labs(x = "Count",
+    y = "Occupation"
+  ) 
+```
+
+Evidently, some occupations tend to be very over-represented, such as Sports/Games, Culture-core (refer to [@sec-analysis-of-variables]), or Politics. This highlights that notable people on Wikipedia are most often associated with only a handful of occupations/categories.
+
+# Model {#sec-model}
 
 ## Overview
 
-The ultimate goal the modelling strategy is to estimate the prominence of individuals on Wikipedia (by percentile). The model incorporates interaction terms as well as validation techniques to ensure model robustness and accuracy.
+The ultimate goal the modelling strategy is to identify which characteristics are most associated with prominence. The model was split up into testing and training sets with the help of the `tidymodels` [@tidymodels] package.
 
 Additional background details and diagnostics are included in the Appendix [@sec-model-details].
 
@@ -262,8 +293,7 @@ The model is expressed by the equation:
 
 \begin{align}
 \text{prominence percentile} = &\ \beta_0 + \beta_1 \cdot \text{occupation} + \beta_2 \cdot \text{subregion} + \beta_3 \cdot \text{time period} \\
-&+ \beta_4 \cdot \log(\text{age}) + \beta_5 \cdot \text{gender} + \beta_6 \cdot (\text{time period} \times \log(\text{age})) \\
-&+ \beta_7 \cdot (\text{occupation} \cdot \text{gender}) + \epsilon
+&+ \beta_4 \cdot \text{gender} + \epsilon
 \end{align}
 
 with the variables representing the following:
@@ -272,33 +302,32 @@ with the variables representing the following:
 -   $\beta_1$ : the effect of ones occupation (relative to one with an occupation of an Academic) on prominence percentile ranking.
 -   $\beta_2$ : the effect of ones geographical subregion (relative to the Caribbean) on prominence percentile ranking.
 -   $\beta_3$ : the effect of ones time-period (relative to those born before 500AD) on prominence percentile ranking
--   $\beta_4$ : the logarithmic effect of age (`years_since_birth`).
--   $\beta_5$ : The effect of ones gender (relative to female) on prominence percentile ranking
--   $\beta_6$ : the interaction between the individuals time period (at birth) and age
--   $\beta_7$ : the interaction between ones occupation and their gender
+-   $\beta_4$ : The effect of ones gender on prominence percentile ranking
 -   $\epsilon$ : residual term, or the variation in percentile_ranking not due to the predictors.
 
-The model was ran in R [@citeR] using the base `lm()` function.
+The model was ran in the R programming language [@citeR] using the base `lm()` function, with the help of the `MLmetrics` and `broom` packages for model evaluation (shown in @sec-model-details of the appendix).
 
-Many of the modelling decisions are reflective of the findings from the @sec-analysis-of-variables section. These include:
+Many of the initial modelling decisions are reflective of the findings from the data section (in @sec-analysis-of-variables). However, these were later removed after performing various statistical tests. The initial decisions included:
 
--   the decision to apply `log()` to the age, as the distribution of this variable followed an exponential distribution (thus transforming this variable aids with identifying these effects)
+-   Applying `log()` to the age, as the distribution of this variable followed an exponential distribution (thus transforming this variable aids with identifying these effects).
 
--   Additionally, the decision to add an interaction term between the individual's age and time period is informed by how time period is a categorical representation of ones age (thus affecting one another)
+-   Adding an interaction term between the individual's age and time period, as time period is a categorical representation of ones age (thus affecting one another).
 
--   The decision to apply an interaction between gender and occupation. It was shown that gender ratios depend heavily on the occupation, making them strongly associated with one another.
+-   Adding an interaction between gender and occupation. It was shown that gender ratios depend heavily on the occupation, making them strongly associated with one another.
 
-## Model Assumptions
+The equation of the full model, which includes these initial decisions, is shown in @sec-model-details.
 
-Linear regression relies on assumptions that should be verified before drawing inferences on the results of the model. These assumptions include linearity, homoscedasticity (constant variance), and normally distributed error (residuals). @fig-assumptions provides graphs that checks these assumptions.
+## Checking Model Assumptions and Validation of Final Model
+
+Linear regression relies on assumptions that should be verified before drawing inferences on the results of the model. These assumptions include a linear relationship between the dependent variable and independent variables, homoscedasticity (constant variance of the residual), normally distributed standard error (residuals), and no multicollinearity. @fig-assumptions provides graphs that checks the first three assumptions, with checks for multicollinearity being done in @sec-vif.
 
 ```{r}
 #| label: fig-assumptions
 #| fig-cap: Compilation of Graphs Verifying Assumptions of Linear Regression
-#| fig-subcap: ['Residuals vs Fitted Plot: Shows Roughly Linearity and Constant Variance', 'QQ-plot of Standardised Residuals: Shows Roughly Normally Distributed Standardised Error (Residuals)', 'Scale-location plot which shows homoscedasticity (Approximately Constant Variance)']
+#| fig-subcap: ['Residuals vs Fitted Plot: Shows Approximate Linearity and Constant Variance', 'QQ-plot of Standardised Residuals: Shows Roughly Normally Distributed Standardised Error (Residuals)', 'Scale-location plot which shows homoscedasticity (Approximately Constant Variance)']
 #| echo: false
+#| layout-ncol: 2
 
-par(mfrow = c(2,2))
 plot(BIC_model, which = 1)
 plot(BIC_model, which = 2)
 plot(BIC_model, which = 3)
@@ -306,35 +335,47 @@ plot(BIC_model, which = 3)
 
 ```
 
-# ELABORATE MORE ON LINEAR REGRESSION GRAPHS (SENTENCE or two for each graph)
+@fig-assumptions provides a series of graphs that can help assess the few assumptions mentioned above. These plots show:
 
-## Model Validation
+-   linearity: the residuals vs fitted plot shows roughly uncorrelated residuals (evidenced by the red line) However, there is a slight decrease in fitted values closer to 0 and a slight increase in fitted values close to 1. This is possibly a consequence of how percentiles are not entirely normally distributed. Although the residuals appear to decrease as the fitted values increase, the trend line shows that the average value of the residual remains relatively constant.
+
+-   Homoscedasticity (constant variance): the scale-location plot evalutes the homoscedasticity of the model. The red line (corresponding to the averages of the fitted values based on standardised residuals) is roughly horizontal.
+
+-   Normally distributed standardised residuals: The QQ-plot shows that the standardised residuals are roughly normally-distributed, with a somewhat heavy tail for more extreme values.
+
+Furthermore, checks for multicollinearity were done to ensure that proper significance was identified for coefficients. As mentioned before, the specific checks are found in @sec-vif. This motivated the removal of the `years_since_birth` term - contributing to less multicollinearity and more accurate conclusions about coefficient significance, especially related to time period.
+
+### Validation of Final Model
+
+A series of statistical tools and techniques were used to aid in the ultimate goal of this model, which was to identify which characteristics correlate the most to individual prominence on Wikipedia. These tools were used in conjunction with tests of linear regression assumptions and analysis of the Variance Inflation Factor (VIF).
 
 #### Bayesian information Criterion
 
-The Bayesian information criterion (BIC) is a metric used for model selection among a finite set of models. It is based on the likelihood function and penalises datasets that may be too large. This validation technique helps minimize overfitting while retaining the goodness of fit. (<https://ieeexplore.ieee.org/document/1311138>)
+The Bayesian information criterion (BIC) is a metric used for model selection among a finite set of models. It is based on the likelihood function and penalises datasets that may be too large. This validation technique helps minimize over fitting while retaining the goodness of fit (@BIC).
 
-This statistical metric was used as an aid in determining which predictor variables to remove and which variables to include in the final model. More details on how this method was used is found in the appendix (@sec-bic).
+This statistical metric was used as an aid in determining which predictor variables to remove and which variables to include in the final model. The results of the BIC on the full model encouraged removal of the interaction variable between gender and occupation. More details on how this method was used is found in the appendix (@sec-bic).
 
 #### Root Mean Squared Error
 
-Analysis of the root mean squared error (RMSE) can provide a clue as to how accurate the model's estimations are. Root mean squared error measures the average difference between values predicted by the model and the actual values. Using the `modelsummary()` function (as shown in @tbl-modelresults), the model obtained an RMSE of 0.26, which corresponds to an average error of 26 percentile ranks.
+Analysis of the root mean squared error (RMSE) can provide a clue as to how accurate the model's estimations are. Root mean squared error measures the average difference between values predicted by the model and the actual values. Using the `modelsummary()` function (as shown in @tbl-modelresults), the model obtained an RMSE of 0.27, which corresponds to an average error of 27 percentile ranks.
 
 #### Out-of-sample testing
 
-Further validation of the model, including the validation of linear regression assumptions, is done through out-of-sample testing. Training data on different models was used to generate predictive abilities for the model. Then, based on their predictions of the testing data, comparisons of the RMSE of different models indicated that the chosen model tended to perform better (a more accurate predictive model would tend to have a lower RMSE). More details on the different models tested and their comparisons can be found in @sec-rmse-comparison.
+Further validation of the model was done through out-of-sample testing. Training data on different models was used to generate the predictive abilities of different models. Then, based on their predictions of the testing data, comparisons of the RMSE of different models indicated that the chosen model, with less complexity, tended to perform roughly as well as the full model. More details on the different models tested and their comparisons can be found in @sec-rmse-comparison.
 
-## Limitations
+## Limitations {#sec-model-limitations}
 
 A notable limitation of this model is that it is theoretically possible for the model to estimate a negative percentile or a percentile above 100. However, since these estimations would be physically impossible, this suggests potentially inaccurate results for more extreme percentile estimates.
 
-Another limitation is the relative lack of data for some underrepresented groups. @sec-subregion, for example, illustrates the discrepency for certain subregions in the dataset. A comparative lack of data for those certain subregions are likely associated with less predictive certainty from the model. In other words, the models predictions of prominence for people in different time periods/contexts is likely less accurate.
+Another limitation is the relative lack of data for some underrepresented groups. @sec-subregion, for example, illustrates the discrepency for certain subregions in the dataset. A comparative lack of data for those certain subregions are likely associated with less predictive certainty from the model. In other words, the models predictions of prominence for people in different time periods/contexts is likely less accurate. This is also prevalent in other characteristics, such as occupation. This limitation of the model also has consequences for the results in @sec-results.
 
 A final limitation of this model is that predicting prominence using a dataset on Wikipedia relies heavily on the informational accuracy of the original dataset. Incorrect information on the characteristics results in an inaccurate model.
 
 # Results {#sec-results}
 
-Our results are summarized in @tbl-modelresults.
+## modelsummary() results
+
+The `modelsummary()`function from the `modelsummary` package (@modelsummary) provides a summary for the findings of the linear model, and is shown in @tbl-modelresults to highlight the most significant characteristics that affect Wikipedia prominence. Aside from the time period, the most significant coefficients of the model were occupation-related.
 
 ```{r}
 #| echo: false
@@ -342,16 +383,18 @@ Our results are summarized in @tbl-modelresults.
 #| warning: false
 #| message: false
 
+# initializes model prediction for the results
+
+
 testing_data$predicted_rank <- predict(BIC_model, testing_data) # prediction of model
 
 ```
 
 ```{r}
 #| label: tbl-modelresults
-#| fig-cap: Output of modelsummary() for linear model, highlighting 6 of the most significant predictor variables. "Significance" was determined by co-efficients that have a p-value less than 0.05 that also large effect on prominence
+#| fig-cap: Output of modelsummary() for linear model, highlighting  the most significant predictor variables as well as the effect of gender. "Significance" was determined by co-efficients that have a p-value less than 0.025 and a large effect on prominence.
 #| echo: false
 
-BIC_model <-lm(data = cleaned_data, percentile_rank ~  occupation + subregion + time_period + log(years_since_birth) + gender + time_period:log(years_since_birth) + occupation:gender)
 
 model_tidy <- tidy(BIC_model)
 
@@ -364,45 +407,98 @@ top_predictors <- model_tidy %>%
   slice(1:8) |>
   pull(term)
 
+top_predictors <- c(top_predictors, "genderMale")
+
 # Display the top 5 predictors using modelsummary
 modelsummary(BIC_model,
-  coef_map = top_predictors)
+  coef_map = top_predictors,
+   statistic = "p = {p.value}"
+)
 
 ```
 
-the `modelsummary()`function from the `modelsummary` package (@modelsummary) provides a summary for the findings of the linear model, and is shown in @tbl-modelresults to highlight the top 6 most significant characteristics that affect Wikipedia prominence. Aside from the time period, the most significant coefficients of the model were occupation-related.
+Evidently, terms that are related to occupation and time period tend to the most correlated with Wikipedia prominence. Those involved in politics, big business, as well as those without a listed occupation are associated with the largest difference in prominence. Additionally, time periods that are more modern tend to also experience a larger decrease in prominence (compared to individuals born before 500 BCE), which is explored with more detail in @sec-prominence-and-time-period.
+
+## Prominence and Gender {#sec-prominence-}
+
+Those who are male also experienced a small (and not statistically significant) boost in notability among those who are already notable. Thus, to explore this trend of slightly higher male prominence, @fig-gender_prediction provides a view of the model's predictions for prominence divided by gender.
 
 ```{r}
 #| label: fig-gender_prediction
-#| fig-cap: Boxplot of Model Predictions for Prominence by Gender
+#| fig-cap: Densities of Gender-based Prominence Predictions
 #| echo: false
+#| warning: false
+
 
 gender_data <- testing_data |>
   group_by(gender) |>
   mutate(
     mean_predicted_rank = mean(predicted_rank, na.rm = TRUE),
     median_predicted_rank = median(predicted_rank, na.rm = TRUE),
-    count = n()
+    count = n() 
   )
 
-ggplot(gender_data, aes(x = gender, y = predicted_rank, fill = gender)) +
-  geom_boxplot() +
+
+gender_summary <- gender_data %>%
+  group_by(gender) %>%
+  summarise(
+    mean_rank = mean(predicted_rank, na.rm = TRUE),
+    sd_rank = sd(predicted_rank, na.rm = TRUE)
+  )
+
+# Create the density plot
+density_plot <- ggplot(gender_data, aes(x = predicted_rank, fill = gender)) +
+  geom_density(alpha = 0.5) +
   theme_minimal() +
   labs(
-    x = "Gender",
-    y = "Predicted Percentile Rank"
+    x = "Predicted Percentile Rank",
+    y = "Density"
   ) +
   scale_fill_manual(values = c("Male" = "steelblue", "Female" = "coral")) +
   theme(legend.position = "none")
 
+
+par(mfrow = c(1, 2))
+
+print(density_plot)
+
+
 ```
+
+The distribution of predicted prominence by gender is roughly equal, with women being very slightly higher. Despite men experiencing slightly higher prominence (as shown in @tbl-modelresults), the mean prediction of prominence favours women as shown in @tbl-gender_prediction.
+
+```{r}
+#| label: tbl-gender_prediction
+#| tbl-cap: Summary Statistics of Gender Prediction
+#| echo: false
+#| warning: false
+
+
+
+gender_summary <- gender_data %>%
+  group_by(gender) %>%
+  summarise(
+    mean_rank = mean(predicted_rank, na.rm = TRUE),
+    sd_rank = sd(predicted_rank, na.rm = TRUE)
+  )
+
+# Print the summary table
+# Use the base R method for printing
+gender_summary |>
+  kable(col.names=c("gender", "Mean Predicted Percentile", "standard deviation"))
+```
+
+## Prominence and Time Period {#sec-prominence-and-time-period}
+
+From the results of the `modelsummary()` function in @tbl-modelresults, it is evident that time period tends to have a large effect on prominence. Thus, @fig-time_period_prediction shows the effect of time period on model estimates with time periods categorised into five broad ranges.
 
 ```{r}
 #| label: fig-time_period_prediction
-#| fig-cap: Model-Predicted Distributions of Percentile Rank by Time Period. The graph illustrates a much higher prominence for those born before 500 AD
+#| fig-cap: Model-Predicted Distributions of Percentile Rank by Time Period. Bars Shown On the Bottom Denote the Standard Deviation of the Prediction, With More Variability for Less Represented Time Periods (such as before 500 AD)
 #| echo: false
+#| warning: false
 
-testing_data$predicted_rank <- predict(BIC_model, testing_data)
+
 
 time_period_stats <- testing_data %>%
   group_by(time_period) %>%
@@ -426,7 +522,6 @@ normal_distributions <- time_period_stats |>
   ) |>
   unnest(cols = c(x, density))
 
-
 ggplot(normal_distributions, aes(x = x, y = density, color = time_period, fill = time_period)) +
   geom_line(size = 1.2) +  # Density curve
   geom_area(alpha = 0.2, position = "identity") +  # Filled area
@@ -437,7 +532,7 @@ ggplot(normal_distributions, aes(x = x, y = density, color = time_period, fill =
   theme_minimal() +
   scale_y_continuous( breaks = seq(0, 4, by = 2)) +
   labs(
-    x = "Predicted Percentile Rank",
+    x = "Predicted Prominence Percentile",
     y = "Density"
   ) +
   theme(
@@ -446,108 +541,178 @@ ggplot(normal_distributions, aes(x = x, y = density, color = time_period, fill =
   )
 ```
 
+@fig-time_period_prediction highlights the large variation in model predictions based on the time period the individual was born in. Although those born in earlier time periods tend to have significantly higher prominence, there were also a much lower amount of them.
+
+## Prominence and Subregion
+
+The relationship between subregion and predicted prominence is explored in @fig-subregion_prediction.
+
 ```{r}
 #| label: fig-subregion_prediction
-#| fig-cap: Boxplot of Model's Predicted Prominence of Individuals Based on Geographical Subregion
+#| fig-cap: Barplot of Model's Coefficients Associated With Subregion With 95% Confidence Interval. Values Are In Comparison To Dummy Variable for Subregion (Carribbean)
 #| echo: false
 
-coef(BIC_model)
+# Get all model coefficients
+model_coefficients <- coef(BIC_model)
 
-# Or extract only the subregion coefficients
-subregion_coef <- coef(BIC_model)[grep("subregion", names(coef(BIC_model)))]
-subregion_coef
+# Get the 95% confidence intervals for all coefficients
+conf_intervals <- confint(BIC_model, level = 0.95)
 
-predicted_values <- predict(BIC_model, newdata = testing_data, type = "response")
+# Combine the coefficients and confidence intervals into a data frame
+coef_df <- data.frame(
+  variable = names(model_coefficients),
+  coef_value = model_coefficients,
+  lower_ci = conf_intervals[, 1],
+  upper_ci = conf_intervals[, 2]
+)
 
-# Add predictions to the original dataframe
-testing_data$predicted_percentile_rank <- predicted_values
+# Filter for only the subregion-related variables (assuming the subregion names are part of the variable names)
+subregion_coef <- coef_df[grepl("subregion", coef_df$variable), ] 
+subregion_coef$variable <- gsub("^subregion", "", subregion_coef$variable)
 
-# Plot predicted percentile rank by subregion
-ggplot(testing_data, aes(x = predicted_percentile_rank, y = subregion, fill = subregion)) +
-  geom_boxplot() +
-  theme_minimal() +
+
+subregion_coef_sorted <- subregion_coef %>%
+  arrange(desc(coef_value))
+
+ggplot(subregion_coef_sorted, aes(x = coef_value, y = reorder(variable, coef_value))) + 
+  geom_point(stat = "identity", fill = "lightblue", color = "black", size = 2.5) +  # Bars for coefficient values
+  geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci), height = 0.2, color = "black") +  # Error bars
   labs(
-    x = "Predicted Percentile Rank",
+    x = "Coefficient Value",
     y = "Subregion"
   ) +
-  theme(
-    axis.text.y = element_text(angle = 0),  # Keeps the subregion names horizontal
-    legend.position = "none"  # Removes the legend
-  )
+  theme_minimal() + 
+   geom_vline(xintercept = 0, linetype = "dashed", color = "red", size = 0.5) + 
+  scale_x_continuous(limits = c(-0.4,0.4), 
+                     expand = c(0, 0))
+```
 
+@fig-subregion_prediction indicates how much certain subregions are correlated with increased prominence percentiles, as well as 95% confidence interval bars that show the uncertainty associated with each coefficients effect. Notable people from Central America are associated with over a 10 percent reduction in percentile prominence (compared to the Caribbean, which is the reference). This is in stark contrast to those from Eastern Asia, with that subregion being associated with the largest increase in prominence.
+
+## Prominence and Occupation
+
+@fig-occupation_results compares the different effects that occupations (or domains of influence) may have on the prominence of an individual.
+
+```{r}
+#| label: fig-occupation_results
+#| fig-cap: Comparison of Predicted (<span style="color:red;">Red</span>) vs Actual (<span style="color:blue;">Blue</span>) Prominence Percentile Rank by Occupation. It illustrates the predictive ability of the model while also showing the effect of occupation on prominence.
+#| echo: false
+
+
+ summary_data <- testing_data %>%
+  group_by(occupation) %>%
+  summarize(
+    mean_actual_rank = mean(percentile_rank, na.rm = TRUE),  # Actual ranks
+    mean_predicted_rank = mean(predicted_rank, na.rm = TRUE),  # Predicted ranks
+    .groups = "drop"
+  ) |>
+    arrange((mean_actual_rank)) |>
+   mutate(occupation = factor(occupation, levels = occupation))
+ 
+ 
+ggplot(summary_data, aes(y = reorder(occupation, mean_actual_rank))) +
+  geom_segment(
+    aes(x = mean_actual_rank, xend = mean_predicted_rank, y = occupation, yend = occupation)      
+  ) +
+  geom_point(
+    aes(x = mean_actual_rank), color = "blue", size = 3 
+  ) +
+  geom_point(
+    aes(x = mean_predicted_rank), color = "red", size = 3  
+  ) +
+  theme_minimal() +
+  labs(
+    x = "Average Prominence Percentile Rank",
+    y = "Occupation")
 
 ```
 
+@fig-occupation_results highlights a large variation related to prominence and occupation. Those with an occupation/domain of influence that was unknown/missing tended to have the lowest prominence (by far), whereas those identified as being part of "culture-core" experienced the highest. The large difference between occupations also highlights the importance of occupation on prominence.
+
+## Overall Model Predictive Ability
+
+Furthermore, @fig-percentile_prediction provides a visualization of the predictive ability of the model that was used. Note that the ultimate purpose of the model not to predict prominence accurately, but rather to highlight which characteristics were most associated with prominence among notable people.
+
 ```{r}
 #| label: fig-percentile_prediction
-#| fig-cap: Graph comparing the model's predicted percentile of prominence vs. the actual percentile. Testing data (i.e., data the model was not trained with) was used to more accurately evaluate prediction ability. 1000 random datapoints were selected to highlight the overall results.
+#| fig-cap: Graph comparing the model's predicted percentile of prominence vs. the actual percentile. Testing data (i.e., data the model was not trained with) was used to more accurately evaluate prediction ability. 500 random datapoints were selected to highlight the overall results.
 #| echo: false
 
 set.seed(200)
 
 graph_data <- testing_data |>
-  sample_n(1000)
+  sample_n(500)
 
 ggplot(data=graph_data,
        aes(x=predicted_rank, y=percentile_rank)) + 
-  geom_point() + geom_smooth(aes(x=predicted_rank, y=percentile_rank))+
+  geom_point() + geom_smooth(aes(x=predicted_rank, y=percentile_rank), method = 'gam', formula = y ~ s(x, bs = "cs")) +
   xlab("Predicted Percentile Rank by Model") + ylab("Actual Percentile Rank")
 
 ```
 
-@fig-percentile_prediction highlights the trend between predicted prominence of the model compared to the actual prominence. The shadow of the blue line indicates the 95% confidence interval of predictions from the linear model. This illustrates a weak, but existing, relationship between the prediction given by the model and the actual percentile rank.
+@fig-percentile_prediction highlights the trend between predicted prominence of the model compared to the actual prominence. The shadow of the blue line indicates the 95% confidence interval of the mean predictions from the linear model. This illustrates a weak, but existing, relationship between the prediction given by the model and the actual percentile rank.
 
 # Discussion {#sec-discussion}
 
-(MAKE THIS SECTION \~100 LINES)
+## Notable Relationship between Time Period and Prominence {#sec-time-period-prominence}
 
-## Notable Relationship between Time Period and Prominence
-
-Interestingly, time period tends to have quite a strong effect on prominence that is more significant than other characteristics that were evaluated for (such as subregion or gender). Notable individuals that were born before 500AD displaying higher prominence makes intuitive sense, as time may have resulted in many records of otherwise notable people not being included on Wikipedia. It is possible that those who were significantly influential or notable thousands of years ago tended to have more information being written about them, making their biographical records last longer.
+Interestingly, time period tends to have quite a strong effect on prominence that is more significant than some other characteristics that were evaluated for (such as subregion or gender). Notable individuals that were born before 500AD displaying higher prominence makes intuitive sense, as time may have resulted in many records of otherwise notable people not being included on Wikipedia. It is possible that those who were significantly influential or notable thousands of years ago tended to have more information being written about them, making their biographical records last longer. This is captured in @fig-time_period_prediction, which highlights an exponentially lower amount of people that are from earlier time periods.
 
 There is also a notable increase in prominence for those born between 501-1500AD, which might also be explained by the same phenomenon as those born before 500 AD. Interestingly, time periods after 1500 AD do not display this same trend in prominence, with those born between 1901-2020 AD having a higher mean prominence than those in 1501 AD.
 
-Future studies could specifically focus on the relationship between individual prominence and time periods, including the reason for those in time periods after 1500 AD not showing notable mean differences in prominence.
+Next steps for future studies could include exploring the amount of documentation of notable people through time and the distribution, exploring the relationship between the passage of time and the loss of documentation of individuals. It may be possible that time periods after the 1500's still retain most documentation of notable people, resulting in less differences in prominence and a larger sample.
 
 ## Geographic Subregion and Prominence
 
-https://data.worldbank.org/indicator/IT.NET.USER.ZS
+Using data from the World Bank (@worldbank), it is evident that countries that tend to have a larger prominence of internet users tend to be wealthier countries (with many of them being part of the western world). This finding was supported by the results in @sec-analysis-of-variables, which suggested a significant overrepresentation of those from Europe and Northern America.
 
-Using data from the World Bank, it is evident that countries that tend to have a larger prominence of internet users tend to be wealthier countries (with many of them being part of the western world). This was shown previously in @sec-analysis-of-variables, which suggested a significant overrepresentation of those from Europe and Northern America.
+@fig-subregion_prediction provides an overview on various coefficients for subregion and how they may affect prominence. Interestingly, the trend of western individuals being more notable does *not* continue when looking at already notable people (as shown by the lower predicted prominence of those from Oceania deemed to be part of the Western world). Even though the model underestimates the spread of the data (as mentioned later-on in @sec-weaknesses , it is evident that those from Eastern Asia overall have a higher prominence on Wikipedia.
 
-Interestingly, the trend of western individuals being more notable does *not* continue when looking at already notable people (as shown by the lower predicted prominence of those from Oceania deemed to be part of the Western world). Even though the model underestimates the spread of the data, it is evident that those from Eastern Asia are an outlier in terms of prominence.
+Furthermore, the large range associated with the majority of subregions suggests that an individuals subregion, overall, does not tend to be too significant of a predictor variable. Nearly every subregion, other than a few, contain a confidence interval that includes 0 (suggesting a notable chance that the difference may be negligible).
+
+Larger ranges in confidence intervals also directly correlate to how much available data there is on the specific subregion, such as the large confidence interval range from Oceania (not including Australia/New Zealand). This comes as no surprise, as the dataset has the lowest proportion of notable individuals out of any subgroup (as shown by @sec-subregion in the data section).
 
 ## Similar Prominence Between Notable Men and Women
 
-some studies, including the one by [@Banaji_Greenwald], highlighted that unconscious gender stereotyping was present and that individuals assigned a higher assignment of fame to males than females. Another meta-analysis of gender inequality in the workplace by [@workplace_sexism] highlights sexism where women tend to receive less promotions and less leadership roles, among other factors. Women receiving less leadership and more lower-status roles in the workplace could easily translate into biases in societal prominence. 
+Some studies, including the one by [@Banaji_Greenwald], highlighted that unconscious gender stereotyping was present and that individuals assigned a higher assignment of fame to males than females. Another meta-analysis of gender inequality in the workplace by [@workplace_sexism] highlights sexism where women tend to receive less promotions and less leadership roles, among other factors. Women receiving less leadership and more lower-status roles in the workplace could easily translate into biases in societal prominence. The proportion of notable men compared to women, as shown in @sec-analysis-of-variables, reflects this bias - with men being very much overrepresented in this dataset.
 
-However, the findings of this study do not entirely confirm previous studies between the relationship of gender and fame (which is heavily associated with prominence). In fact, the results relating to gender (shown in [@fig-gender_prediction]) highlight that notable women tend to be slightly more prominent than notable men. However, it also suggests that there is a large amount of variation in prominence  between notable men and women, indicating that gender is likely not a significant characteristic in predicting prominence from those who are already notable.
+However, when focusing exclusively on those who are already notable, the findings of this paper do not support previous studies regarding the relationship of gender on prominence. In fact, the results relating to gender (shown in [@fig-gender_prediction]) highlight that notable women tend to be slightly more prominent than notable men - although not by much. It also suggests that there is a large amount of variation in prominence between notable men and women, indicating that gender is likely not a significant characteristic in predicting prominence from those who are already notable. The insignificance of the `gender` variable is supported by the results in `modelsummary()` which indicate a very small positive difference in prominence with being a male, but with a very large p-value (suggesting that this difference could very well be due to chance).
 
-It also may be possible that the underrepresentation of women in this dataset means that the women who are already notable require a higher threshold of prominence to be on the dataset in the first place.Future studies can be conducted to explore the relationship between already notable people and how gender may (or may not) be associated with prominence.
+It also may be possible that the underrepresentation of women in this dataset means that the women who are already notable require a higher threshold of prominence to be on the dataset in the first place. Future studies can be conducted to explore the relationship between already notable people and how gender may (or may not) be associated with prominence.
+
+## Prominence by Occupation/Domain of Influence {#sec-prominence-by-occupation}
+
+Prominence tends to be strongly associated with an individuals occupation, as shown by @fig-occupation_results and @tbl-modelresults. In fact, the difference based on occupation is so large that the groups with most prominence (such as "culture-core" or "family") are, on average, 30 percentile points more prominent than those with a category of "missing" (as shown in @fig-occupation_results). Unsurprisingly, those with "missing" occupations tend to be much less prominent overall. It is quite intuitive that a lack of information on an individual correlates to lower overall prominence. Additionally, like other variables, `occupation` conserves the same trend of more popular categories having a more accurate model prediction.
+
+Furthermore, the overall prominence based on occupation may correlate to the exclusivity of the respective occupation/group. For example, those belonging to 'nobility' or 'family' may tend to be more prominent as belonging to the noble class or belonging to a powerful family is inherently a very small and elite group of people. This could be compared to a less prominent occupation, such as "Worker/Business(small)", which often includes those who are farmers, librarians, or booksellers - a much less elite occupation.
 
 ## Discussion of modelsummary() results
 
-The results from the `modelsummary()`, which summarize the model, are shown in [@tbl-modelresults]. Unsurprisingly, those that do not have their occupations mentioned (`occupationMissing` in `modelsummary()`) tend to be much less prominent overall. It is quite intuitive that a lack of information on an individual correlates to lower overall prominence. 
+The results from the `modelsummary()`, which summarize the model, are shown in [@tbl-modelresults]. As mentioned in @sec-prominence-by-occupation, it makes intuitive sense that an occupation of "missing" would correspond to a very large overall decrease in prominence.
 
-Interestingly, some occupations such as being involved in politics; being an important person in a large business; and being associated with sports or games also tend to have a notable effect on percentiles of prominence.  The results suggest that occupation plays quite an important role in determining prominence, at least compared to the other predictor variables. Additionally, those born in the time period from 1501-1700 AD and those from Central America tend to have a lower prominence. Future analyses could be done to explore whether there is genuinely a strong effect of these certain characteristics on prominence, as this also may indicate a potential flaw in the model.
+Interestingly, some occupations such as being involved in the military; being a politician; and being associated with administration/law also tend to have a notable effect on percentiles of prominence. The results suggest that occupation plays quite an important role in determining prominence, at least compared to the other predictor variables. Additionally, those born in the time period from 1501-1700 AD, 1501-1750AD, and 1901-2020 AD tend to have a much lower amount of prominence than those born before 500 AD (as mentioned in @sec-time-period-prominence).
 
-## Weaknesses
+## Weaknesses {#sec-weaknesses}
 
-### Results only relevant for those already considered "notable"
+### Results Only Relevant for Those Already Considered "Notable"
 
-analyses only takes into account people who are ALREADY PROMINENT. \@sec-analysis-of-variables identifies characteristics of prominent people, and the appearance of bias in favour of certain characteristics (such as being a man or from Western Europe) is already reflected. However, since this study measures difference in prominence between those who are **already** notable, the linear model does not tend to highlight those biases as strongly.
+The correlations found in this paper only take into account people who are ALREADY already prominent. \[@sec-analysis-of-variables identifies characteristics of prominent people, and the appearance of bias in favour of certain characteristics (such as being a man or from Western Europe) is already reflected. However, since this study measures difference in prominence between those who are **already** notable, the linear model does not tend to highlight those biases as strongly. This is why, for example, being a male was not significantly correlated with prominence.
 
-### Unequal Distribution of Characteristics
+### Unequal Prevalence of Characteristics Affects Model Prediction
 
-Not only has the world population grown exponentially in the past few hundred years, but records of notable people can be lost due to time. This can make predictions of prominence heavily biased towards individuals who live (or have lived) in more recent time periods. It may be difficult to extend the finding of prominence onto individuals with less represented characteristics (including being born before 500AD).
+Those with characteristics that are underrepresented in the dataset tend to have less accurate predictions of popularity from the model. This is mentioned in the model section (@sec-model-limitations) but has downstream consequences for the results, especially when analysing less represented subregions or occupation.
+
+Not only has the world population grown exponentially in the past few hundred years, but records of notable people can be lost due to time. This can make the number of prominent individuals heavily biased towards individuals who live (or have lived) in more recent time periods. It may be difficult to extend the finding of prominence onto individuals with less represented characteristics (such as being born before 500AD).
+
+This also extends to occupations, as highlighted in @fig-occupation_results. The difference between the prediction of the model and the actual percentile rank are heavily correlated with the distribution of occupations (as shown in @fig-occupation_count). Limited entries of certain occupations, such as "other", "missing", and "family" tend to show a less accurate model prediction.
 
 ### Limited Prediction Ability
 
-From \@fig-percentile_prediction, we can see the predictive ability of the model leaves a lot to be desired. It suggests that given the specific predictors of the model (related to gender, subregion, age, and broad categorization of occupation), there is still a lot of variability of prominence that is not explained by these predictors. This is further evident by the RMSE and R\^2 values shown in \@tbl-modelresults. The R\^2 value of 0.138 suggests that these predictors only explain 14% of the variance in `percentile_rank`, which is quite low. This suggests that an individuals prominence on Wikipedia is largely explained by other factors not included in the model (including ones that are not measured in the original dataset).
+From @fig-percentile_prediction, we can see the predictive ability of the model leaves a lot to be desired. It suggests that given the specific predictors of the model (related to gender, subregion, age, and broad categorization of occupation), there is still a lot of variability of prominence that is not explained by these predictors. This is further evident by the RMSE and R\^2 values shown in @tbl-modelresults. The R\^2 value of 0.121 suggests that these predictors only explain around 12% of the variance in `percentile_rank`, which is quite low. This suggests that an individuals prominence on Wikipedia is largely explained by other factors not included in the model (including ones that are not measured in the original dataset).
 
-We can also see that the model tends to put most of its predictions near the 50th-percentile mark. A more ideal model would have a more spread out prediction of percentile. This results in the model underestimating the overall spread/variance of the data, making some differences appear more stark than others. This phenomenon is also evident in figures that portray prediction results for given characteristics (such as \@fig-subregion_prediction, \@fig-time_period_prediction, and \@fig-gender_prediction). This means that the model largely underestimates the overall spread/variance of the data, resulting in characteristic-related differences appearing more significant than they actually are.
+We can also see that the model tends to put most of its predictions near the 50th-percentile mark. A more ideal model would have a more spread out prediction of percentile. This results in the model underestimating the overall spread/variance of the data, making some differences appear more stark than others. This phenomenon is also evident in figures that portray prediction results for given characteristics (such as @fig-subregion_prediction, @fig-time_period_prediction, and @fig-gender_prediction). This means that the model largely underestimates the overall spread/variance of the data, resulting in characteristic-related differences appearing more significant than they actually are.
 
-although the predictive ability of this model leaves room for improvement, the model is still quite useful for analysing overall trends of prominence for specific characteristics.
+Although the predictive ability of this model leaves room for improvement, the model is still quite useful for analysing overall trends of prominence for specific characteristics.
 
 \`\newpage
 
@@ -555,91 +720,99 @@ although the predictive ability of this model leaves room for improvement, the m
 
 # Appendix {.unnumbered}
 
-# Additional data details
-
 # Model details {#sec-model-details}
+
+A final model was intended to be chosen after performing numerous tests on a full model. The full model was as follows:
+
+\begin{align}
+\text{prominence percentile} = &\ \beta_0 + \beta_1 \cdot \text{occupation} + \beta_2 \cdot \text{subregion} + \beta_3 \cdot \text{time period} \\
+&+ \beta_4 \cdot \log(\text{age}) + \beta_5 \cdot \text{gender} + \beta_6 \cdot (\text{time period} \times \log(\text{age})) \\
+&+ \beta_7 \cdot (\text{occupation} \cdot \text{gender}) + \epsilon
+\end{align}
+
+with the variables representing the following:
+
+-   $\beta_0$ : the intercept term when all other predictors are set to zero.
+-   $\beta_1$ : the effect of ones occupation (relative to one with an occupation of an Academic) on prominence percentile ranking.
+-   $\beta_2$ : the effect of ones geographical subregion (relative to the Caribbean) on prominence percentile ranking.
+-   $\beta_3$ : the effect of ones time-period (relative to those born before 500AD) on prominence percentile ranking
+-   $\beta_4$ : the logarithmic effect of age (`years_since_birth`).
+-   $\beta_5$ : The effect of ones gender (relative to female) on prominence percentile ranking
+-   $\beta_6$ : the interaction between the individuals time period (at birth) and age
+-   $\beta_7$ : the interaction between ones occupation and their gender
+-   $\epsilon$ : residual term, or the variation in percentile_ranking not due to the predictors.
+
+The large amount of variables an interaction terms highlights the associations between different predictors, with their relationships being shown in @sec-data-cleaning-and-variables. The ultimate motive for starting with a large model was to include the possibility of numerous different predictor variables being important for prediction. However, the final model was eventually chosen after a series of numerous statistical tests (including BIC, VIF, and RMSE).
 
 ## Bayesian Information Criterion (BIC) {#sec-bic}
 
+The method of BIC was an important tool used to remove unnecessary terms, and was the first step for obtaining the full model. This was preferred over a similar method called the Akaike information criterion, since the BIC is more harsh with an overly complex model (increasing the chance of possibly insignificant interaction terms being removed). BIC was performed with a backwards selection process (that goes from a more complex to less complex model) and removed the terms `gender` and `gender:occupation` (an interaction term). The BIC helped with the decision to remove the gender/occupation interaction variable, but the `gender` variable was still retained to further analyse its significance in prominence.
+
+## Variance Inflation Factor (VIF) {#sec-vif}
+
+VIF is a technique that is used to help address the linear regression assumption of multicollinearity (that is, correlations between different predictor variables). More specifically, it shows how much variance of an estimated regression coefficient increases due to multicollinearity. Higher GVIF values indicate potential issues with multicollinearity that could obstruct how significant a characteristic truly is. With the help of the `car` package (@car), the VIF table of the updated model (with `gender:occupation` removed) is shown in @tbl-vif.
+
+```{r}
+#| label: tbl-vif
+#| tbl-cap: GVIF Values (and thus multicollinearity) High in Time-Related Predictors
+#| echo: false
+#| warning: false
+
+new_model <- lm(data=training_data, percentile_rank ~ occupation + subregion + time_period + log(years_since_birth) + 
+                        gender + time_period:log(years_since_birth))
+vif <- car::vif(new_model)
+kable(vif)
+```
+
+The high GVIF shown by `time_period` and `log(years_since_birth)` is expected as they both relate to an individuals time of birth. However, the decision to remove `log(years_since_birth)` was to see more directly how time period influenced prominence. This aided with the discovery that the time period has quite a significant result on prominence, as shown in @tbl-modelresults.
+
 ## RMSE Comparison {#sec-rmse-comparison}
 
-In @fig-ppcheckandposteriorvsprior-1 we implement a posterior predictive check. This shows...
+After obtaining a reduced model, the root mean squared error (RMSE) between different models was used to verify that the reduced model still retained predictive abilities. RMSE calculations were performed with the help of the MLmetrics (@MLmetrics)
 
-In @fig-ppcheckandposteriorvsprior-2 we compare the posterior with the prior. This shows...
+```{r}
+#| label: tbl-rmse
+#| tbl-cap: Similar RMSE highlights Relatively Similar Predictive Ability Between Reduced and Full Model
+#| echo: false
+#| warning: false
 
-`{# {r} # plot(relevance_model, "trace") #  # plot(relevance_model, "rhat")`
 
-<!-- ```{r} -->
+full_model <- lm(data=training_data, percentile_rank ~ occupation + subregion + time_period + log(years_since_birth) + 
+                        gender + time_period:log(years_since_birth) + gender:occupation)
 
-<!-- #| eval: true -->
+reduced_model = BIC_model
+pred1 = predict(full_model, testing_data)
+pred2 = predict(reduced_model, testing_data)
 
-<!-- #| echo: false -->
+rmse_full = RMSE(pred1, testing_data$percentile_rank)
+rmse_reduced = RMSE(pred2, testing_data$percentile_rank)
 
-<!-- #| message: false -->
+rmse_table <- data.frame(
+  Model = c("RMSE for Reduced Model", "RMSE for Full Model"),
+  RMSE = c(rmse_reduced, rmse_full)
+)
 
-<!-- #| warning: false -->
+kable(rmse_table, col.names = c("Model", "Root Mean Square Error"))
+```
 
-<!-- #| label: fig-ppcheckandposteriorvsprior -->
+A nearly identical root mean square error suggests that the reduced model is roughly as good as the full model when it comes to predicted vs. actual values. This comes at the benefit of having less multicollinearity and having a less complex model. Thus, the reduced model was ultimately chosen.
 
-<!-- #| layout-ncol: 2 -->
+## Full modelsummary() Results
 
-<!-- #| fig-cap: "Examining how the model fits, and is affected by, the data" -->
+Previous summaries of the final model focused more on a handful of significant variables. However, @tbl-full-modelsummary-results provides each characteristic and its influence on prominence of notable people. The table was generated with the help of the `kableExtra` package (@kableExtra).
 
-<!-- #| fig-subcap: ["Posterior prediction check", "Comparing the posterior with the prior"] -->
+```{r, fig.width=8, fig.height = 30}
+#| label: tbl-full-modelsummary-results
+#| tbl-cap: Full Results of the Model, Including Characteristics Not Strongly Associated With Wikipedia Prominence
+#| echo: false
+#| warning: false
 
-<!-- pp_check(first_model) + -->
+library(kableExtra)
 
-<!--   theme_classic() + -->
+model_summary= modelsummary(BIC_model, output = "default")
 
-<!--   theme(legend.position = "bottom") -->
-
-<!-- posterior_vs_prior(first_model) + -->
-
-<!--   theme_minimal() + -->
-
-<!--   scale_color_brewer(palette = "Set1") + -->
-
-<!--   theme(legend.position = "bottom") + -->
-
-<!--   coord_flip() -->
-
-<!-- ``` -->
-
-<!-- ## Diagnostics -->
-
-<!-- @fig-stanareyouokay-1 is a trace plot. It shows... This suggests... -->
-
-<!-- @fig-stanareyouokay-2 is a Rhat plot. It shows... This suggests... -->
-
-<!-- # ```{r} -->
-
-<!-- # #| echo: false -->
-
-<!-- # #| eval: true -->
-
-<!-- # #| message: false -->
-
-<!-- # #| warning: false -->
-
-<!-- # #| label: fig-stanareyouokay -->
-
-<!-- # #| fig-cap: "Checking the convergence of the MCMC algorithm" -->
-
-<!-- # #| fig-subcap: ["Trace plot", "Rhat plot"] -->
-
-<!-- # #| layout-ncol: 2 -->
-
-<!-- # -->
-
-<!-- # plot(first_model, "trace") -->
-
-<!-- # -->
-
-<!-- # plot(first_model, "rhat") -->
-
-<!-- # ``` -->
-
-<!-- # -->
+model_summary
+```
 
 # Exploration of Notable People Dataset and Methodology {#sec-exploration}
 
@@ -651,7 +824,7 @@ This section of this appendix contains a more thorough analysis and exploration 
 
 The database integrates information from both Wikipedia and Wikidata. The extracted data from Wikipedia comes from seven popular language editions: English, French, German, Spanish, Portuguese, and Swedish. Many notable people documented (30%) thus come from the 6 non-English Wikipedia editions that were examined. Information on individuals is verified using different language editions, ensuring more reliable data.
 
-Data is also extracted from Wikidata, which contains structured data linked to a Wikipedia page. The sample of individuals chosen was defined by this data (The researchers then merged the information on both websites to avoid dealing with duplicates and ensure data reliability.
+Data is also extracted from Wikidata, which contains structured data linked to a Wikipedia page. The sample of individuals chosen was defined by this data (the researchers then merged the information on both websites to avoid dealing with duplicates and ensure data reliability).
 
 ### Data Verification
 
@@ -667,13 +840,26 @@ Further verification was performed to ensure that the collected data was accurat
 #| label: tbl-variables_of_raw_data
 #| tbl-cap: Table of all variables present in the dataset
 #| echo: false
+#| warning: false
 
-variable_names <- colnames(raw_data)
+variable_names <- c("wikidata_code", "birth", "death", "updated_death_date", 
+                    "approx_birth", "approx_death", "birth_min", "birth_max", 
+                    "death_min", "death_max", "gender", "level1_main_occ", 
+                    "name", "un_subregion", "birth_estimation", "death_estimation", 
+                    "bigperiod_birth_graph_b", "bigperiod_death_graph_b", "curid", 
+                    "level2_main_occ", "freq_main_occ", "freq_second_occ", 
+                    "level2_second_occ", "level3_main_occ", "bigperiod_birth", 
+                    "bigperiod_death", "wiki_readers_2015_2018", "non_missing_score", 
+                    "total_count_words_b", "number_wiki_editions", "total_noccur_links_b", 
+                    "sum_visib_ln_5criteria", "ranking_visib_5criteria", "all_geography_groups", 
+                    "string_citizenship_raw_d", "citizenship_1_b", "citizenship_2_b", 
+                    "list_areas_of_rattach", "area1_of_rattachment", "area2_of_rattachment", 
+                    "list_wikipedia_editions", "un_region", "group_wikipedia_editions", 
+                    "bplo1", "dplo1", "bpla1", "dpla1", "pantheon_1", "level3_all_occ")
 
 variable_names_matrix <- matrix(variable_names, ncol = 2, byrow = TRUE)
 
 kable(variable_names_matrix)
-
 
 ```
 
@@ -703,11 +889,23 @@ The researchers defined the sample of notable individuals by using the "instance
 
 ## Limitations of Dataset
 
-## Potential Enhancements for Measuring Prominence
+-   Western-centric bias: the researchers focused specifically on 7 popular Wikipedia languages, which are predominantly spoken by those in the West. Additionally, 30% of individuals in the dataset come from English Wikipedia, which skews the data towards Western countries.
 
-### 
+-   Gender-bias: Strong evidence of unequal gender representation exists in terms of notable people on Wikipedia. Although this bias of Wikipedia is not a fault of the researchers, this gender bias results in comparatively less extrapolation of dataset trends compared to men.
 
-### 
+-   Bias towards those who have internet access: the nature of obtaining notable people through an online encyclopedia, such as Wikipedia, likely may not include notable people in communities that do not have the same level of internet access. This is especially a concern in countries that do not have widespread internet usage.
+
+-   Recency-bias: Individuals who are from more modern time periods benefit from much more documentation and representation.
+
+## Potential Enhancements for Dataset
+
+Although Wikipedia can give an idea on the overall trends relating to prominence, the limitations of this dataset have consequences for predicting prominence more generally. There are, however, some ways this can potentially be mediated. Not only do these improvements improve the ability to make inferences on prominence, but they also provide a more robust dataset. This improvements may include:\
+
+-   including data from historical records or repositories that are more focused on women to address their under representation. An intentional effort to select women could mitigate the bias against them.
+
+-   including non-European langauges in order to gain a more comprehensive dataset of notable people that exist. This could also include cooperating with historians or figures that are knowledgeable on notable figures (which may not be included on Wikipedia).
+
+-   more comprehensive measures of prominence that do not just take in Wikipedia-related metrics. This may include interviews with experts, as well as social media mentions (for more modern figures) to compare overall prominence.
 
 \newpage
 
