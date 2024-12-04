@@ -7,7 +7,7 @@ This repository aims to dataset of notable people on Wikipedia from 3500 BCE to 
 
 The repo is structured as:
 
--   `data/raw_data` contains the raw data as obtained from *A cross-verified database of notable people, 3500BC-2018AD*.
+-   `data/raw_data` contains the raw data (*A cross-verified database of notable people, 3500BC-2018AD*) as obtained from Laouenan et. al.
 -   `data/analysis_data` contains the cleaned dataset that was constructed.
 -   `model` contains fitted models. 
 -   `other` contains relevant literature, a datasheet, details about LLM chat interactions, and sketches.
