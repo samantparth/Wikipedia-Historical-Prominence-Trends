@@ -1,12 +1,12 @@
 ---
 title: "Analyzing Trends on the Characteristics of Notable People on Wikipedia"
-subtitle: "[BLAH, BLAH,BLAH] characteristics are associated with increased prominence"
+subtitle: "an Individuals Time Period and Occupation Strongly Associated with Prominence"
 author: 
   - Parth Samant
 thanks: "Code and data are available at: [https://github.com/samantparth/Wikipedia-Historical-Prominence-Trends](https://github.com/samantparth/Wikipedia-Historical-Prominence-Trends)."
 date: today
 date-format: long
-abstract: "Wikipedia is an online encyclopedia that contains information on millions of diverse subjects, arguably serving as a repository for human knowledge. In this paper, I analyzed a dataset of notable people on Wikipedia from 3500 BCE to 2018 AD to identify whether certain characteristics (such as age and gender) were correlated with prominence. The analysis found that [WHAT DID YOU FIND???]. The findings highlight...."
+abstract: "Wikipedia is an online encyclopedia that contains information on millions of diverse subjects, arguably serving as a repository for human knowledge. In this paper, I analyzed a dataset of notable people on Wikipedia from 3500 BCE to 2018 AD to identify whether certain characteristics (such as age and gender) were correlated with prominence. The analysis found that occupation and time period were most strongly associated with prominence, with subregion and gender being less significant. This highlights how prominence between already notable people selects for different characteristics."
 format: pdf
 number-sections: true
 bibliography: references.bib
