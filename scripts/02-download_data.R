@@ -5,7 +5,6 @@
 # Contact: parth.samant@mail.utoronto.ca
 # License: MIT
 # Pre-requisites: Make sure tidyverse, readr, httr, R.utils libraries have been downloaded
-# Any other information needed? None
 
 
 #### Workspace setup ####
