@@ -5,8 +5,6 @@
 # Contact: parth.samant@mail.utoronto.ca
 # License: MIT
 # Pre-requisites: Make sure tidyverse, readr, and arrow libraries have been downloaded
-# Any other information needed? None
-
 
 #### Workspace setup ####
 library(tidyverse)
