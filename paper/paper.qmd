@@ -486,7 +486,7 @@ gender_summary |>
 
 From the results of the `modelsummary()` function in @tbl-modelresults, it is evident that time period tends to have a large effect on prominence. Thus, @fig-time_period_prediction shows the effect of time period on model estimates with time periods categorised into five broad ranges.
 
-```{r}
+```{r, out.width='70%', out.height='70%'}
 #| label: fig-time_period_prediction
 #| fig-cap: Model-Predicted Distributions of Percentile Rank by Time Period. Bars Shown On the Bottom Denote the Standard Deviation of the Prediction, With More Variability for Less Represented Time Periods (such as before 500 AD)
 #| echo: false
@@ -534,7 +534,7 @@ ggplot(normal_distributions, aes(x = x, y = density, color = time_period, fill =
     panel.spacing = unit(0.5, "lines")
   )
 ```
-
+\newpage
 @fig-time_period_prediction highlights the large variation in model predictions based on the time period the individual was born in. Although those born in earlier time periods tend to have significantly higher prominence, there were also a much lower amount of them.
 
 ## Prominence and Subregion
@@ -708,7 +708,7 @@ We can also see that the model tends to put most of its predictions near the 50t
 
 Although the predictive ability of this model leaves room for improvement, the model is still quite useful for analysing overall trends of prominence for specific characteristics.
 
-\`\newpage
+\newpage
 
 \appendix
 
@@ -795,7 +795,7 @@ A nearly identical root mean square error suggests that the reduced model is rou
 
 Previous summaries of the final model focused more on a handful of significant variables. However, @tbl-full-modelsummary-results provides each characteristic and its influence on prominence of notable people. The table was generated with the help of the `kableExtra` package (@kableExtra).
 
-```{r, fig.width=8, fig.height = 30}
+```{r, tbl.width=1, tbl.height=5}
 #| label: tbl-full-modelsummary-results
 #| tbl-cap: Full Results of the Model, Including Characteristics Not Strongly Associated With Wikipedia Prominence
 #| echo: false
@@ -803,9 +803,11 @@ Previous summaries of the final model focused more on a handful of significant v
 
 library(kableExtra)
 
-model_summary= modelsummary(BIC_model, output = "default")
+# modelsummary(BIC_model, output = "default", table.font.size = 4)
 
-model_summary
+modelsummary(BIC_model, output = "kableExtra", statistics = NULL) |>
+    kable_styling(font_size = 8, full_width = FALSE, bootstrap_options = "striped", position = "center") |>
+    row_spec(0, bold = TRUE)
 ```
 
 # Exploration of Notable People Dataset and Methodology {#sec-exploration}
