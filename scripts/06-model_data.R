@@ -4,8 +4,7 @@
 # Date: 25 November 2024
 # Contact: parth.samant@mail.utoronto.ca
 # License: MIT
-# Pre-requisites: [...UPDATE THIS...]
-# Any other information needed? None
+# Pre-requisites: Make sure tidyverse, MLmetrics, broom, and tidymodels packages have all been installed
 
 
 #### Workspace setup ####
