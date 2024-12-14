@@ -1,6 +1,6 @@
 ---
 title: "Analyzing Trends on the Characteristics of Notable People on Wikipedia"
-subtitle: "an Individuals Time Period and Occupation Strongly Associated with Prominence"
+subtitle: "Time Period and Occupation Strongly Associated with Individual Prominence"
 author: 
   - Parth Samant
 thanks: "Code and data are available at: [https://github.com/samantparth/Wikipedia-Historical-Prominence-Trends](https://github.com/samantparth/Wikipedia-Historical-Prominence-Trends)."
@@ -40,19 +40,13 @@ BIC_model <- readRDS(here::here(file = "models/relevance_model.rds"))
 
 # Introduction
 
-Wikipedia is an online encyclopedia has been one of the most popular references of information globally. Containing milllions of articles on the platform, and thus acting somewhat as an archive for human information. This encyclopedia provides information on a diverse range of topics from history to entertainment.
-
-Within this vast encyclopedia, there is also a collection of biographical information on "notable people" who have ever lived in the past few thousand years. Thus, one research study [@notablepeople] compiled a dataset of notable people on Wikipedia from 3500 BCE to 2018.
+Wikipedia is an online encyclopedia has been one of the most popular references of information globally. Containing milllions of articles on the platform, and thus acting somewhat as an archive for human information. This encyclopedia provides information on a diverse range of topics from history to entertainment. Within this vast encyclopedia, there is also a collection of biographical information on "notable people" who have ever lived in the past few thousand years. Thus, one research study [@notablepeople] compiled a dataset of notable people on Wikipedia from 3500 BCE to 2018.
 
 Using this dataset, I constructed a linear model to identify whether certain characteristics were associated with increased prominence. Some of the factors focused on include geographical subregion, gender, occupation, and time period (at birth). By analysing these factors, this paper aims to uncover potential bias in characteristics of notable people and contribute to a deeper understanding of factors connected to prominence on Wikipedia.
 
 The estimand (or what is being estimated) is the prominence of their Wikipedia biography based on percentile. "Prominence" of a biography is determined using multiple metrics, such as the average amount of views per year, the total word count, and the number of Wikipedia editions. This constructed percentile variable is also a transformation of the variable `ranking_visib_5criteria` present in the original dataset. Features of this variable are elaborated on in @sec-measurement.
 
-The findings of this paper showed that an individuals time period and occupation/field have a large effect on an individuals prominence. Those who were born in earlier time periods (such as before 500 BCE) were associated large increases in prominence. Additionally, those known for being part of a noble class, an important family, or for creative endeavors that shape culture (such as musicians, actors, or painters) also tend to have higher overall prominence.
-
-Subregion was somewhat associated with prominence, but with a large amount of variability. Notable individuals from Eastern Asia tend to have high levels of prominence, whereas those from Central America and Southern Africa have less.
-
-This paper also found that within those who are already prominent, gender tends to have a somewhat insignificant effect.
+The findings of this paper showed that an individuals time period and occupation/field have a large effect on an individuals prominence. Those who were born in earlier time periods (such as before 500 BCE) were associated large increases in prominence. Additionally, those known for being part of a noble class, an important family, or for creative endeavors that shape culture (such as musicians, actors, or painters) also tend to have higher overall prominence.Subregion was somewhat associated with prominence, but with a large amount of variability. Notable individuals from Eastern Asia tend to have high levels of prominence, whereas those from Central America and Southern Africa have less. It was also found that within those who are already prominent, gender tends to have a somewhat insignificant effect.
 
 Understanding which factors contribute to prominence on Wikipedia is essential for many reasons. Wikipedia is used as a crucial tool for obtaining information for millions of people worldwide, having the ability to shape perceptions of prominent individuals. Unequal representation of prominent people can perpetuate existing biases about which characteristics are seen as "ideal" for prominence. Furthermore, these biases can discourage some individuals from pursuing fields where prominent people sharing their characteristics are under represented. Thus, analysing these dynamics can help with addressing broader societal biases and striving for a more comprehensive view of individual prominence.
 
