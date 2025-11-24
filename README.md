@@ -1,6 +1,6 @@
 ## Overview
 
-This repository aims to dataset of notable people on Wikipedia from 3500 BCE to 2018 AD to identify whether certain characteristics (such as age and gender) were correlated with prominence. The analysis found that occupation and time period were most strongly associated with prominence, with subregion and gender being less significant. This highlights how prominence between already notable people selects for different characteristics.
+This repository uses a dataset of notable people on Wikipedia from 3500 BCE to 2018 AD to identify whether certain characteristics (such as age and gender) were correlated with prominence. The analysis found that occupation and time period were most strongly associated with prominence, with subregion and gender being less significant. This highlights how prominence between already notable people selects for different characteristics.
 
 
 ## File Structure
